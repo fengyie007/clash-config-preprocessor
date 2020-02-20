@@ -34,16 +34,20 @@ def handle_v1(data: OrderedDict) -> OrderedDict:
     for item in proxy_group_dispatch_dicts:
         group_data: OrderedDict = item.copy()
         ps: list = []
-
-        black_regex = re.compile(item["proxies-filters"]["black-regex"])
-        white_regex = re.compile(item["proxies-filters"]["white-regex"])
+        
+        if "proxies-filters" not in item:
+            black_regex = None
+            white_regex = None
+        else:
+            black_regex = re.compile(item["proxies-filters"].get("black-regex",''))
+            white_regex = re.compile(item["proxies-filters"].get("white-regex",''))
 
         if "flat-proxies" in item and item["flat-proxies"] is not None:
             ps.extend(item["flat-proxies"])
 
         for p in proxies:
-            p_name: str = p["name"]
-            if white_regex.fullmatch(p_name) and not black_regex.fullmatch(p_name):
+            p_name: str = formatName(p["name"])
+            if black_regex and white_regex and white_regex.fullmatch(p_name) and not black_regex.fullmatch(p_name):
                 ps.append(p_name)
 
         if "back-flat-proxies" in item and item["back-flat-proxies"] is not None:
@@ -53,7 +57,8 @@ def handle_v1(data: OrderedDict) -> OrderedDict:
         group_data.pop("flat-proxies", None)
         group_data.pop("back-flat-proxies", None)
 
-        group_data["proxies"] = ps
+        if ps:
+            group_data["proxies"] = ps
 
         proxy_groups.append(group_data)
 
@@ -62,7 +67,7 @@ def handle_v1(data: OrderedDict) -> OrderedDict:
 
     if not rule_sets_dicts is None:
         for item in rule_sets_dicts:
-            item_name: str = item["name"]
+            item_name: str = formatName(item["name"])
             item_type: str = item["type"]
             item_map: dict = {}
             item_rule_skip = item.get("rule-skip", {})
@@ -90,13 +95,16 @@ def handle_v1(data: OrderedDict) -> OrderedDict:
 
     return result
 
+def formatName(input: str):
+    return input.replace("\t",'')
 
 def load_url_proxies(url: str) -> OrderedDict:
     data = requests.get(url)
     data_yaml: OrderedDict = yaml.load(data.content.decode(), Loader=yaml.Loader)
-
-    return data_yaml["Proxy"]
-
+    proxies = data_yaml["Proxy"]
+    for item in proxies:
+        item['name'] = formatName(item['name'])
+    return proxies
 
 def load_file_proxies(path: str) -> OrderedDict:
     with open(path, "r") as f:
@@ -114,9 +122,13 @@ def load_url_rule_set(url: str, targetMap: dict, skipRule: set, skipTarget: set)
     result: list = []
 
     for rule in data["Rule"]:
-        original_target = str(rule).split(",")[-1]
+        splits = str(rule).split(",")
+        if len(splits) > 2:
+            original_target = str(rule).split(",")[2:3][0]
+        else:
+            original_target = ''
         map_to: str = targetMap.get(original_target)
-        if str(rule).split(',')[0] not in skipRule and original_target not in skipTarget:
+        if splits[0] not in skipRule and original_target not in skipTarget:
             if not map_to is None:
                 result.append(str(rule).replace(original_target, map_to))
             else:

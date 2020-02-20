@@ -32,7 +32,7 @@ def main():
         print("Unsupported version")
         return
 
-    print(yaml.dump(result, default_flow_style=False))
+    print(yaml.dump(result, default_flow_style=False,allow_unicode=True))
 
 
 if __name__ == "__main__":

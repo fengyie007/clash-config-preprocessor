@@ -89,9 +89,9 @@ def handle_v1(data: OrderedDict) -> OrderedDict:
         else:
             rules.append(rule)
 
-    result["Proxy"] = proxies
-    result["Proxy Group"] = proxy_groups
-    result["Rule"] = rules
+    result["proxies"] = proxies
+    result["proxy-groups"] = proxy_groups
+    result["rules"] = rules
 
     return result
 
@@ -101,16 +101,22 @@ def formatName(input: str):
 def load_url_proxies(url: str) -> OrderedDict:
     data = requests.get(url)
     data_yaml: OrderedDict = yaml.load(data.content.decode(), Loader=yaml.Loader)
-    proxies = data_yaml["Proxy"]
+    proxies = load_properties(data_yaml,"Proxy","proxies")
     for item in proxies:
         item['name'] = formatName(item['name'])
     return proxies
+
+def load_properties(dict,prop1,prop2):
+    result = dict[prop1]
+    if not result:
+        result = dict[prop2]
+    return result
 
 def load_file_proxies(path: str) -> OrderedDict:
     with open(path, "r") as f:
         data_yaml: OrderedDict = yaml.load(f, Loader=yaml.Loader)
 
-    return data_yaml["Proxy"]
+    return load_properties(data_yaml,"Proxy","proxies")
 
 
 def load_plain_proxies(data: OrderedDict) -> OrderedDict:
@@ -121,7 +127,8 @@ def load_url_rule_set(url: str, targetMap: dict, skipRule: set, skipTarget: set)
     data = yaml.load(requests.get(url).content, Loader=yaml.Loader)
     result: list = []
 
-    for rule in data["Rule"]:
+    rules = load_properties(data,"Rule","rules")
+    for rule in rules:
         splits = str(rule).split(",")
         if len(splits) > 2:
             original_target = str(rule).split(",")[2:3][0]
@@ -142,7 +149,8 @@ def load_file_rule_set(path: str, targetMap: dict, skipRule: set, skipTarget: se
         data = yaml.load(f, Loader=yaml.Loader)
     result: list = []
 
-    for rule in data["Rule"]:
+    rules = load_properties(data,"Rule","rules")
+    for rule in rules:
         original_target = str(rule).split(",")[-1]
         map_to: str = targetMap.get(original_target)
         if str(rule).split(',')[0] not in skipRule and original_target not in skipTarget:

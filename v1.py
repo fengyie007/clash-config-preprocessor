@@ -107,9 +107,9 @@ def load_url_proxies(url: str) -> OrderedDict:
     return proxies
 
 def load_properties(dict,prop1,prop2):
-    result = dict[prop1]
+    result = dict.get(prop1)
     if not result:
-        result = dict[prop2]
+        result = dict.get(prop2)
     return result
 
 def load_file_proxies(path: str) -> OrderedDict:
